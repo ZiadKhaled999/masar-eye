@@ -95,7 +95,7 @@ browser.storage.local.get('capturedData').then((result) => {
     (details) => {
       if (details.type !== 'xmlhttprequest') return {};
       if (details.method === 'OPTIONS') return {};
-      if (!details.url.startsWith('https://app.netrofit.com/')) return {};
+      
       try {
         const filter = browser.webRequest.filterResponseData(details.requestId);
         const decoder = new TextDecoder();
