@@ -1,321 +1,319 @@
-masar-eye
+# Masar Eye 🕵️‍♂️
 
-Extract your data from third-party platforms — cleanly, locally, and on your terms.
+> **Data portability for platforms that don't offer it.**
+> Masar Eye is a Firefox extension that captures your own data from [app.netrofit.com](https://app.netrofit.com) and exports it as clean CSV files — no lock-in, no server, no third party.
 
-https://img.shields.io/badge/license-Apache%202.0-blue.svg
-
-https://img.shields.io/badge/Firefox-Manifest%20V2-orange.svg
-
-https://img.shields.io/badge/status-active-brightgreen.svg
-
----
-
-📖 Table of Contents
-
-· What is Masar Eye?
-· Why Does It Exist?
-· How It Works
-· Repository Structure
-· Prerequisites
-· Installation
-· Usage Guide
-· Deep Dive: How the Capture Engine Works
-· Deep Dive: How the Export Works
-· Data Flow Diagram
-· Configuration Reference
-· Troubleshooting
-· FAQ
-· Development Workflow
-· Extending Masar Eye
-· Privacy & Security
-· Legal & Ethical Use
-· Roadmap
-· Contributing
-· License
+[![Manifest](https://img.shields.io/badge/manifest-v2-blue.svg)](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json)
+[![Firefox](https://img.shields.io/badge/firefox-%E2%89%A5%2091-orange.svg)](https://www.mozilla.org/firefox/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+[![No Telemetry](https://img.shields.io/badge/telemetry-none-success.svg)](#privacy--security)
 
 ---
 
-🎯 What is Masar Eye?
+## 📖 Table of Contents
 
-Masar Eye is a collection of browser extension tools designed to help users extract their own data from SaaS platforms they already have accounts on — and turn it into portable, human-readable formats like CSV.
-
-The first and current module is netrofit-exporter, a Firefox extension that captures API responses from app.netrofit.com and exports them as CSV files, ready for import into spreadsheets, databases, or Masar's own platform.
-
-The name "Masar Eye" reflects its purpose: an eye into your own data, watching what an app sends back to you and pulling it out for you to keep.
-
----
-
-💡 Why Does It Exist?
-
-Modern SaaS platforms lock your data in. You can see it, use it, but exporting it in a clean format is either:
-
-· Not offered (no export button at all)
-· Incomplete (only partial data, or in a format you can't reuse)
-· Paywalled (a "Pro" feature)
-· Awkward (a printed PDF instead of structured data)
-
-For migration, backup, reporting, or switching vendors, users need their data back in a usable format. Masar Eye provides that — locally, transparently, and without asking the platform for permission.
-
-Instead of scraping the DOM (fragile) or reverse-engineering the API blindly (fragile and slow), Masar Eye listens to the API calls your browser is already making and captures the JSON responses.
-
----
-
-⚙️ How It Works
-
-At a high level:
-
-1. You install the extension in Firefox.
-2. You log into the target platform (app.netrofit.com) as normal.
-3. As you browse, the extension silently intercepts every XHR/fetch response the platform makes.
-4. JSON responses are parsed, deduplicated, and stored locally in browser.storage.local.
-5. When you click "Export", each detected entity type is converted to a CSV file and downloaded.
-6. You get CSVs with all the data you browsed — flattened, deduplicated, ready to use.
-
-Nothing is sent anywhere. No analytics, no backend, no telemetry. Everything stays on your machine.
+- [What Is Masar Eye?](#-what-is-masar-eye)
+- [Why Does It Exist?](#-why-does-it-exist)
+- [Features](#-features)
+- [How It Works](#-how-it-works)
+- [Repository Structure](#-repository-structure)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Usage Guide](#-usage-guide)
+- [Deep Dive: The Capture Engine](#-deep-dive-the-capture-engine)
+- [Deep Dive: The Export Pipeline](#-deep-dive-the-export-pipeline)
+- [Data Flow](#-data-flow)
+- [Configuration Reference](#-configuration-reference)
+- [Troubleshooting](#-troubleshooting)
+- [FAQ](#-faq)
+- [Development Workflow](#-development-workflow)
+- [Extending Masar Eye](#-extending-masar-eye)
+- [Privacy & Security](#-privacy--security)
+- [Legal & Ethical Use](#-legal--ethical-use)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
-🗂 Repository Structure
+## 🎯 What Is Masar Eye?
+
+**Masar Eye** is a Firefox browser extension that lets users export their own data from the Netrofit platform as structured CSV files.
+
+Netrofit (like many modern SaaS platforms) does not offer a built-in data export feature. Once a client's data is inside Netrofit, getting it out — for migration, backup, or integration with another system — is difficult. **Masar Eye solves that problem** by quietly capturing the API responses the Netrofit web app already fetches and turning them into files you own.
+
+The extension runs entirely inside your browser. Nothing is uploaded to any server. Nothing is shared with the developer. Your data stays on your machine.
+
+---
+
+## 💡 Why Does It Exist?
+
+Two reasons:
+
+1. **Data ownership.** If you pay for a platform, you should be able to take your data with you. Most SaaS vendors don't provide an export button because it makes leaving harder. Masar Eye restores that balance.
+
+2. **Integration.** Masar (the parent project) needs to onboard clients who already use Netrofit. Instead of asking them to manually re-enter hundreds of students, courses, and payment records, Masar Eye exports the raw data once and imports it into Masar's schema.
+
+Masar Eye is deliberately **platform-specific** and **read-only**. It reads what Netrofit already sends to your browser. It does not modify, delete, or inject anything into Netrofit.
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| **Zero-config capture** | Just browse the Netrofit app. Every XHR the app makes is intercepted automatically. |
+| **Local-first storage** | Data lives in `browser.storage.local`. It survives tab reloads, browser restarts, and extension restarts. |
+| **Automatic deduplication** | Rows are deduplicated by `id`, `_id`, or `uuid`. Paginated lists accumulate instead of overwriting each other. |
+| **Nested JSON flattening** | Deep objects become dot-notation columns (`student.name`, `course.price`). |
+| **Arabic-safe CSV** | All exports are UTF-8 with a BOM so Arabic text renders correctly in Excel. |
+| **Per-entity export** | Export students, courses, groups, payments — separately or all at once. |
+| **One-click reset** | Clear all captured data with a single button. |
+| **No telemetry** | Zero analytics. Zero network calls to the developer. |
+| **Auditable** | ~300 lines of plain JavaScript. No build step, no minification, no bundler. |
+
+---
+
+## ⚙️ How It Works
+
+Masar Eye uses Firefox's **`webRequest.filterResponseData()`** API to read HTTP response bodies **before they reach the page**.
+
+This is the key architectural decision. Instead of:
+
+- ❌ Injecting a `<script>` into the page (fragile, breaks on CSP)
+- ❌ Patching `window.fetch` (only works if the page uses fetch, not XHR)
+- ❌ Scraping the DOM (misses data, breaks on every UI update)
+
+…we hook into Firefox itself, one layer below the page. The site's JavaScript never knows we're there. If Netrofit rewrites their app tomorrow, the extension keeps working.
+
+**The extension:**
+
+1. Registers a blocking listener on every XHR to `app.netrofit.com`.
+2. For each request, opens a `StreamFilter` on the response body.
+3. Reads the bytes as they stream in, passes them through unchanged (so the app keeps working), and decodes them into a string.
+4. When the response finishes, parses the JSON, infers an entity name from the URL, and appends the rows to local storage.
+5. When you click Export, the popup reads storage, flattens the JSON, and downloads a CSV per entity.
+
+---
+
+## 📁 Repository Structure
 
 ```
 masar-eye/
-├── .kilo/                          # Planning files (dev-time only, not shipped)
-│   └── plans/
-├── netrofit-exporter/              # The Firefox extension (this is what ships)
-│   ├── manifest.json               # Extension manifest (MV2)
-│   ├── background.js               # Capture engine + persistence
-│   ├── popup/
-│   │   ├── popup.html              # Extension popup UI
-│   │   ├── popup.css               # Popup styling
-│   │   └── popup.js                # Export logic + CSV builder
-│   └── icons/
-│       └── icon.svg                # Extension icon
-├── LICENSE                         # Apache 2.0
-└── README.md                       # You are here
+├── manifest.json          # Firefox MV2 manifest — declares permissions, scripts, icons
+├── background.js          # Service worker — intercepts requests, stores data
+├── popup/
+│   ├── popup.html         # Popup UI markup
+│   ├── popup.css          # Popup styling
+│   └── popup.js           # Popup logic — reads storage, flattens JSON, exports CSV
+├── icons/
+│   └── icon.svg           # Extension icon (Firefox scales SVGs natively)
+├── LICENSE                # Apache 2.0
+└── README.md              # This file
 ```
 
-Important: Only netrofit-exporter/ is the actual extension. The .kilo/ folder contains development plans and is not shipped or loaded by Firefox.
+Every runtime file lives **at the root of the extension folder** — that is, in the same directory as `manifest.json`. Firefox resolves all manifest paths relative to the manifest's own location, so moving `manifest.json` one level up or down breaks everything. This is the single most common setup mistake (see [Troubleshooting](#-troubleshooting)).
 
 ---
 
-✅ Prerequisites
+## 📦 Prerequisites
 
-To run or modify Masar Eye, you need:
+- **Firefox 91 or newer** — required for MV2's `webRequestBlocking` and modern `browser.*` promise APIs.
+- **Node.js 22+** — only needed if you want to use Mozilla's official `web-ext` CLI for live reloading, linting, and packaging. Not required to just load the extension.
+- **A Netrofit account** — you must be able to log into `app.netrofit.com` in your own browser.
 
-Tool Version Why
-Firefox 91+ The extension targets Firefox only (Manifest V2)
-Node.js 22+ Required by Mozilla's web-ext tool
-web-ext Latest Official Mozilla tool for building, running, linting extensions
-Git Any To clone the repo
-
-Install web-ext globally:
+Optional:
 
 ```bash
 npm install --global web-ext
 ```
 
-Verify:
+`web-ext` provides `web-ext run` (live reload during development), `web-ext lint` (catches manifest errors before Firefox does), and `web-ext build` (packages the extension as a `.zip`).
+
+---
+
+## 🚀 Installation
+
+### Method 1 — Permanent install (recommended for daily use)
+
+1. Download or clone this repository.
+2. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
+3. Click **Load Temporary Add-on…**.
+4. Select `manifest.json` from the repo root.
+5. The extension appears in your toolbar.
+
+⚠️ **Temporary add-ons are removed when Firefox closes.** For a permanent install, package the extension with `web-ext build` and sign it via [addons.mozilla.org](https://addons.mozilla.org/developers/) (free, self-distribution).
+
+### Method 2 — Live development with `web-ext`
 
 ```bash
-web-ext --version
+git clone https://github.com/ZiadKhaled999/masar-eye.git
+cd masar-eye
+web-ext run
 ```
 
----
+This launches a fresh Firefox profile with the extension auto-loaded. Any file change triggers an automatic reload of the extension — no manual re-install needed. Ideal while iterating on `background.js` or the popup.
 
-🚀 Installation
+### Method 3 — Build a distributable `.zip`
 
-Option 1 — Load temporarily (for development)
+```bash
+cd masar-eye
+web-ext build
+```
 
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/ZiadKhaled999/masar-eye.git
-   cd masar-eye
-   ```
-2. Launch Firefox with the extension loaded:
-   ```bash
-   cd netrofit-exporter
-   web-ext run
-   ```
-   This opens a fresh Firefox instance with the extension installed. Source changes reload automatically.
-
-Option 2 — Load manually in your own Firefox
-
-1. Open Firefox → about:debugging#/runtime/this-firefox
-2. Click "Load Temporary Add-on…"
-3. Navigate to masar-eye/netrofit-exporter/
-4. Select manifest.json
-
-The extension is now loaded. It will unload when you close Firefox (this is normal for temporary add-ons).
-
-Option 3 — Install from a packaged .zip (permanent, unsigned)
-
-1. Build the extension:
-   ```bash
-   cd netrofit-exporter
-   web-ext build
-   ```
-   This creates web-ext-artifacts/netrofit_exporter-X.Y.Z.zip.
-2. Set Firefox to allow unsigned extensions (for testing only):
-   · Go to about:config
-   · Set xpinstall.signatures.required to false
-3. Install:
-   · Go to about:addons
-   · Click the gear icon → "Install Add-on From File…"
-   · Select the .zip from web-ext-artifacts/
+Produces a `web-ext-artifacts/masar_eye-X.Y.Z.zip`. **Important:** the ZIP must have `manifest.json` at its top level, not inside a `masar-eye/` folder. `web-ext build` handles this correctly. If you zip the folder manually, you'll get an error (see [Troubleshooting](#-troubleshooting)).
 
 ---
 
-📘 Usage Guide
+## 📘 Usage Guide
 
-Step 1 — Load the extension
+### Step 1 — Install the extension
 
-Use any of the three installation methods above. Confirm it's loaded at about:debugging — you should see "Netrofit Exporter" listed.
+Follow [Method 1](#method-1--permanent-install-recommended-for-daily-use) above.
 
-Step 2 — Open the target platform
+### Step 2 — Log into Netrofit
 
-Navigate to https://app.netrofit.com and log in as you normally would.
+Open a new tab and log into `app.netrofit.com` as you normally would. The extension does **not** touch the login flow — it only observes requests that happen after you're authenticated, using your existing session cookies.
 
-The extension only runs on app.netrofit.com. It has no access to any other site. You can verify this in manifest.json under permissions.
+### Step 3 — Browse the app
 
-Step 3 — Browse the app
+Navigate to each page whose data you want to export:
 
-Browse every page whose data you want to export:
+- **Students** — the students list
+- **Courses** — the courses list and each course detail page
+- **Groups** — groups per course
+- **Attendance** — attendance sessions
+- **Payments** — subscriptions and payments
+- **Assessments** — exams and grades
 
-· Students list
-· Courses list
-· Groups / classes
-· Attendance sessions
-· Payments / subscriptions
-· Assessments and grades
-· Reports
+For **paginated lists**, scroll through every page. Masar Eye accumulates rows across pages rather than overwriting them, but it can only capture what the app actually fetches — if you don't scroll to page 3, page 3's data is never sent to your browser.
 
-Scroll through paginated lists — each page you view is captured.
+> 💡 **Tip:** open the background console via `about:debugging` → **Inspect** to watch the capture log in real time. You'll see lines like:
+> ```
+> Captured: students (rows: 25, total: 25)
+> Captured: students (rows: 25, total: 50)
+> Captured: courses (rows: 12, total: 12)
+> ```
 
-Why do I have to browse manually? The extension captures data passively. It only sees what your browser fetches. Data you never open is data it never sees. See Roadmap for auto-pagination.
+### Step 4 — Open the popup
 
-Step 4 — Verify capture
+Click the Masar Eye icon in the Firefox toolbar. You'll see:
 
-Open the background console to confirm data is being captured:
+- A **status line** showing how many entities and total rows have been captured.
+- A **list of entities** with row counts.
+- **Export All** and **Reset** buttons.
 
-1. Go to about:debugging#/runtime/this-firefox
-2. Find "Netrofit Exporter"
-3. Click "Inspect"
-4. In the Console tab, you should see logs like:
-   ```
-   Captured data for: students rows: 47
-   Captured data for: courses rows: 12
-   ```
+### Step 5 — Export
 
-If you see these, capture is working.
+Click **Export All**. Firefox downloads one CSV per entity, named like:
 
-Step 5 — Export
+```
+netrofit-students-2026-09-22T14-30-00.csv
+netrofit-courses-2026-09-22T14-30-00.csv
+netrofit-groups-2026-09-22T14-30-00.csv
+```
 
-1. Click the extension icon in the Firefox toolbar.
-2. The popup shows:
-   · Total API calls captured
-   · Number of entities detected
-   · A list of entities with row counts
-3. Click "Export All" to download one CSV per entity.
-4. Files land in your Downloads folder as:
-   ```
-   netrofit-students-2026-09-22T14-30-00.csv
-   netrofit-courses-2026-09-22T14-30-00.csv
-   netrofit-groups-2026-09-22T14-30-00.csv
-   ```
+Each CSV is:
+- UTF-8 encoded
+- Prefixed with a BOM (`\uFEFF`) for Excel compatibility
+- Fully quoted (every cell is wrapped in `"…"`, inner quotes doubled)
+- Flat — nested objects become dot-notation columns
 
-Step 6 — Open in Excel / Sheets
+### Step 6 — Reset
 
-CSVs are prefixed with a UTF-8 BOM (\uFEFF), so Arabic text renders correctly in Excel without manual encoding selection. Double-click any file to open.
-
-Step 7 — Reset (optional)
-
-To clear all captured data and start over:
-
-1. Click the extension icon
-2. Click "Reset"
-3. Confirm
-
-This clears browser.storage.local and the popup will show "0 entities."
+Click **Reset** to clear all captured data. Useful when you want to capture a fresh snapshot or switch accounts. Confirmation is immediate; there's no undo.
 
 ---
 
-🔬 Deep Dive: How the Capture Engine Works
+## 🔬 Deep Dive: The Capture Engine
 
-The capture engine lives in background.js and uses Firefox's webRequest API with the filterResponseData method.
+Everything below lives in `background.js`.
 
-Why filterResponseData?
-
-Most browser extension tutorials tell you to monkey-patch window.fetch and XMLHttpRequest from a content script. That approach is fragile:
-
-· It breaks when the site reassigns fetch
-· It runs in an isolated world (or requires world: "MAIN" gymnastics)
-· It races with the page's own scripts
-
-Firefox's filterResponseData is browser-level. It intercepts responses before they reach the page, works on every XHR automatically, and can't be defeated by the site's JavaScript.
-
-The interception flow
+### 1. The hydration gate
 
 ```js
-browser.webRequest.onBeforeRequest.addListener(
-  (details) => {
-    // 1. Skip preflight requests
-    if (details.method === 'OPTIONS') return {};
-
-    // 2. Skip non-XHR (HTML, CSS, images, etc.)
-    if (details.type !== 'xmlhttprequest') return {};
-
-    // 3. Attach a stream filter to read the body
-    const filter = browser.webRequest.filterResponseData(details.requestId);
-    const chunks = [];
-
-    filter.ondata = (event) => {
-      chunks.push(event.data);
-      filter.write(event.data);   // pass through untouched
-    };
-
-    filter.onstop = () => {
-      // 4. Concatenate, decode, and attempt JSON parse
-      const body = decoder.decode(mergeBuffers(chunks));
-
-      // 5. Cheap JSON guard before parsing
-      if (!(body.trimStart().startsWith('{') ||
-            body.trimStart().startsWith('['))) return;
-
-      const json = JSON.parse(body);
-      const entity = guessEntity(details.url);
-      if (entity) ingest(entity, json);
-    };
-
-    filter.onerror = () => { try { filter.close(); } catch {} };
-    return {};
-  },
-  { urls: ['*://app.netrofit.com/*'] },
-  ['blocking']
-);
+browser.storage.local.get('capturedData').then((result) => {
+  if (result.capturedData) {
+    capturedData = deserializeCapturedData(result.capturedData);
+  }
+  browser.webRequest.onBeforeRequest.addListener(/* ... */);
+});
 ```
 
-Key details:
+The `webRequest` listener is **registered only after** the storage read completes. This prevents a subtle race condition: if a request arrived during hydration, `ingest()` would write to an empty `capturedData`, and then hydration would overwrite it — silently losing the first page of data on every reload.
 
-· filter.write(event.data) is mandatory — the response must be passed through untouched, or the page breaks.
-· filter.close() in a finally block is mandatory — otherwise filters leak and Firefox stops intercepting after a while.
-· The startsWith('{') || startsWith('[') guard skips HTML fragments, error pages, and non-JSON XHRs without wasting CPU on JSON.parse.
+### 2. The blocking listener
 
-Entity inference (guessEntity)
+```js
+(details) => {
+  if (details.type !== 'xmlhttprequest') return {};
+  if (details.method === 'OPTIONS') return {};
+  // ...
+}
+```
 
-When a response arrives, the engine needs to know what kind of data it is. It guesses from the URL:
+Only XHR/fetch requests are intercepted. Static assets, preflights, and document loads are ignored. The listener is **synchronous** — Firefox requires blocking listeners to return a `BlockingResponse` object, not a `Promise`.
 
-URL Inferred entity
-/api/students students
-/api/students?page=2 students
-/api/students/abc-123 students
-/api/students/abc-123/grades grades
-/api/courses courses
+### 3. `filterResponseData`
 
-It walks the URL path backwards, skipping ID-like segments (UUIDs, numeric IDs) until it finds a meaningful name. If it finds two meaningful segments, it joins them with - (e.g. students-grades).
+```js
+const filter = browser.webRequest.filterResponseData(details.requestId);
+```
 
-Normalization (normalize)
+This is the magic. Firefox hands us a stream filter attached to the response body. We receive chunks as they arrive, and we **must call `filter.write(chunk)`** to pass them through unchanged — otherwise the app hangs waiting for a response that never comes.
 
-APIs commonly wrap lists in envelopes. The engine unwraps the most common ones:
+### 4. Decoding and parsing
+
+```js
+filter.ondata = (event) => {
+  chunks.push(event.data);
+  filter.write(event.data);
+};
+
+filter.onstop = () => {
+  const body = decoder.decode(mergeBuffers(chunks));
+  const trimmed = body.trimStart();
+  if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return;
+  try {
+    const json = JSON.parse(body);
+    const entity = guessEntity(details.url);
+    if (entity) ingest(entity, json);
+  } catch {}
+  finally { filter.close(); }
+};
+```
+
+The `startsWith('{') || startsWith('[')` guard is a cheap pre-filter. Many XHRs return HTML fragments, plain text, or empty bodies — parsing those throws and spams the console. The guard skips them without a try/catch overhead.
+
+`filter.close()` is the correct way to release the filter. `filter.disconnect()` (a common mistake) leaves the stream dangling and leaks filters over a long session.
+
+### 5. Entity inference
+
+```js
+function guessEntity(url) {
+  const parts = new URL(url).pathname.split('/').filter(Boolean);
+  const segments = [];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const seg = parts[i];
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg)) continue;
+    if (!isNaN(Number(seg))) continue;
+    segments.unshift(seg);
+    if (segments.length === 2) break;
+  }
+  return segments.join('-') || null;
+}
+```
+
+Walks the URL path **backwards**, skips ID-like segments (UUIDs and pure numbers), and collects up to two meaningful segments. Examples:
+
+| URL | Entity |
+|---|---|
+| `/api/students` | `students` |
+| `/api/students/550e8400-…` | `students` |
+| `/api/students/550e8400-…/grades` | `students-grades` |
+| `/api/courses/42/groups` | `courses-groups` |
+
+### 6. Envelope normalization
 
 ```js
 function normalize(res) {
@@ -327,501 +325,440 @@ function normalize(res) {
 }
 ```
 
-So { data: [...] }, { items: [...] }, { results: [...] } all produce the same array.
+Most APIs wrap lists in an envelope (`{ data: [...] }`, `{ items: [...] }`). This function unwraps the common variants. Single-object responses (like a course detail page) are wrapped in a one-element array so downstream code always works with arrays.
 
-Deduplication (ingest)
-
-Browsing back and forth often triggers the same request multiple times. The engine deduplicates by primary key:
+### 7. Ingestion and deduplication
 
 ```js
-const id = row?.id ?? row?._id ?? row?.uuid;
-if (id != null && capturedData[entity].seen.has(id)) continue;
-if (id != null) capturedData[entity].seen.add(id);
-capturedData[entity].rows.push(row);
-```
-
-seen is a Set — O(1) dedupe.
-
-Persistence
-
-capturedData is written to browser.storage.local debounced at 250ms after each ingest. This means:
-
-· Crash-proof: reloading Firefox doesn't lose your data.
-· Race-condition-safe: the webRequest listener is only registered after hydration completes.
-
-Set objects don't serialize to JSON, so seen is converted to an array on save and back to a Set on load.
-
----
-
-📤 Deep Dive: How the Export Works
-
-The export logic lives in popup/popup.js.
-
-Reading captured data
-
-The popup reads directly from browser.storage.local:
-
-```js
-const { capturedData } = await browser.storage.local.get('capturedData');
-```
-
-Why not message the background script? Because the background script can be suspended by Firefox at any time (MV2 background pages aren't truly persistent). Reading from storage is the source of truth and works even when the background is asleep.
-
-Flattening nested JSON
-
-Real API data is nested:
-
-```json
-{
-  "id": 42,
-  "name": "Ahmed",
-  "course": { "id": 7, "name": "Math" },
-  "tags": ["honor", "advanced"]
-}
-```
-
-A CSV needs flat columns. The flatten function converts nested objects to dot-notation keys:
-
-id name course.id course.name tags
-42 Ahmed 7 Math ["honor","advanced"]
-
-Arrays are JSON-stringified into a single cell rather than exploded into multiple rows — this keeps the row count and primary key stable.
-
-Union of columns
-
-Different rows may have different fields (optional data, partial responses). Instead of using only the first row's keys, the exporter computes the union of all keys across all rows:
-
-```js
-const cols = [...new Set(flat.flatMap(Object.keys))];
-```
-
-Missing values become empty cells.
-
-CSV escaping
-
-Every value is wrapped in double quotes, and internal quotes are escaped by doubling (" → ""). This handles:
-
-· Commas inside values
-· Newlines inside values
-· Quote characters inside values
-
-Example:
-
-```
-"id","name","parent.name"
-"1","Ahmed, Sr.","Ali"
-"2","Sara ""S""","Mona"
-```
-
-UTF-8 BOM
-
-The final string is prefixed with \uFEFF:
-
-```js
-return '\uFEFF' + header + body;
-```
-
-Why? Excel on Windows defaults to ANSI encoding when opening CSVs. Without the BOM, Arabic text like أحمد appears as Ø£ØÙ…Ø¯. With the BOM, Excel detects UTF-8 automatically.
-
-Download
-
-Each entity triggers a separate download via browser.downloads.download:
-
-```js
-browser.downloads.download({
-  url: URL.createObjectURL(blob),
-  filename: `netrofit-${entity}-${timestamp}.csv`,
-  saveAs: false
-});
-```
-
-saveAs: false means files land silently in Downloads without a "Save As" dialog for each one.
-
----
-
-🔄 Data Flow Diagram
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    app.netrofit.com                          │
-│                                                              │
-│   User browses → Angular app fires XHR → Server responds    │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         │ XHR response (JSON)
-                         ▼
-┌──────────────────────────────────────────────────────────────┐
-│              Firefox webRequest API                          │
-│                                                              │
-│   filterResponseData(requestId) → StreamFilter               │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         │ chunks (ArrayBuffer)
-                         ▼
-┌──────────────────────────────────────────────────────────────┐
-│              background.js (capture engine)                  │
-│                                                              │
-│   1. Merge chunks → ArrayBuffer                              │
-│   2. TextDecoder → String                                    │
-│   3. JSON.parse (with guard)                                 │
-│   4. guessEntity(url) → "students"                           │
-│   5. normalize(json) → [row, row, ...]                       │
-│   6. ingest() → dedupe by id, append to capturedData         │
-│   7. persist() → debounced write to storage.local            │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         │ capturedData
-                         ▼
-┌──────────────────────────────────────────────────────────────┐
-│              browser.storage.local                           │
-│                                                              │
-│   {                                                          │
-│     "students": { rows: [...], seen: Set },                  │
-│     "courses":  { rows: [...], seen: Set },                  │
-│     ...                                                      │
-│   }                                                          │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         │ on popup open
-                         ▼
-┌──────────────────────────────────────────────────────────────┐
-│              popup/popup.js (exporter)                       │
-│                                                              │
-│   1. Read capturedData from storage.local                    │
-│   2. For each entity:                                        │
-│      a. flatten(rows) → flat rows                            │
-│      b. union of all keys → columns                          │
-│      c. escape + join → CSV string                           │
-│      d. prepend BOM                                          │
-│      e. download as netrofit-<entity>-<timestamp>.csv        │
-└──────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-                    📁 Downloads
-```
-
----
-
-🔧 Configuration Reference
-
-manifest.json
-
-Key Value Why
-manifest_version 2 MV2 is required for webRequestBlocking
-permissions webRequest, webRequestBlocking, storage, downloads, unlimitedStorage, *://app.netrofit.com/* Host pattern must be in permissions for MV2
-background.persistent true Prevents background suspension mid-capture
-browser_specific_settings.gecko.strict_min_version 91.0 Minimum Firefox version that supports filterResponseData
-data_collection_permissions.required ["none"] Declares no data leaves the user's machine
-
-Tunable constants in background.js
-
-Constant Default Effect
-SAVE_DEBOUNCE_MS 250 How long to wait after last ingest before persisting
-(implicit) — guessEntity skips segments matching /^[0-9a-f]{8}-...$/i (full UUIDs)
-(implicit) — normalize unwraps data, items, results, rows, list, records
-
-To adapt for a different platform, change the URL filter in manifest.json and the guessEntity logic in background.js.
-
----
-
-🐛 Troubleshooting
-
-"Extension didn't capture anything"
-
-1. Check the URL filter. The extension only runs on app.netrofit.com. If you're on a different domain (staging, subdomain), it won't fire.
-2. Check the background console. Open about:debugging → Inspect → Console. If you see nothing, the listener may not be firing.
-3. Check request type. Only details.type === 'xmlhttprequest' is captured. If the platform uses WebSockets or sendBeacon, those are not intercepted (see Roadmap).
-4. Check the JSON guard. If responses start with something other than { or [, they're skipped. Look for logs like Raw response: ... in the console.
-
-"storage.local is empty"
-
-1. Check for the hydration race. The listener must be registered after storage.local.get resolves. If a request arrives before hydration, capturedData gets overwritten.
-2. Check permissions. storage must be listed in manifest.json permissions.
-
-"CSV opens with garbled Arabic"
-
-The BOM is missing. Ensure popup.js returns '\uFEFF' + header + body, not just header + body.
-
-"CSV columns are [object Object]"
-
-Nested objects weren't flattened. Ensure flatten() runs on every row before column extraction.
-
-"web-ext lint complains about the icon"
-
-Firefox requires square icons. Use SVG (icons/icon.svg) — it's square by definition and scales to any size.
-
-"Background script could not be found"
-
-manifest.json must sit in the same folder as background.js. Firefox resolves all paths relative to the manifest's own directory — it does not search subfolders.
-
-"Package file must be a ZIP of the extension's files themselves"
-
-When packaging, zip the contents of netrofit-exporter/, not the folder itself. manifest.json must be at the ZIP root.
-
-"Icon must be square"
-
-Regenerate the icon as a square (e.g. 48×48 or 96×96), or switch to SVG (recommended).
-
-"data_collection_permissions property is missing"
-
-Firefox requires this key for all new extensions since November 3, 2025. Add:
-
-```json
-"browser_specific_settings": {
-  "gecko": {
-    "data_collection_permissions": { "required": ["none"] }
+function ingest(entity, json) {
+  const rows = normalize(json);
+  if (!capturedData[entity]) capturedData[entity] = { rows: [], seen: new Set() };
+  for (const row of rows) {
+    const id = row?.id ?? row?._id ?? row?.uuid ?? JSON.stringify(row);
+    if (capturedData[entity].seen.has(id)) continue;
+    capturedData[entity].seen.add(id);
+    capturedData[entity].rows.push(row);
   }
+  persist();
 }
 ```
 
----
+Rows are deduplicated by their first available identifier. If a record has no `id`, `_id`, or `uuid`, its full JSON string is used as the key — imperfect but avoids dropping anonymous rows.
 
-❓ FAQ
+### 8. Debounced persistence
 
-Q: Does this extension send my data anywhere?
-No. Everything stays in browser.storage.local on your machine. There is no backend, no telemetry, no analytics.
-
-Q: Can the extension see my password?
-No. It only reads responses to XHR requests — not request bodies, not login forms. Passwords sent in a login POST are never read by the extension.
-
-Q: What if the platform updates their API?
-The extension will still capture what it can. If entity names change, they'll appear as new entity types in the popup. If the platform switches to GraphQL, guessEntity will return graphql for everything — see Roadmap.
-
-Q: Can I use this on other platforms?
-Not as-is. The URL filter is hard-coded to app.netrofit.com. To support another platform, add its URL pattern to manifest.json permissions and the listener filter.
-
-Q: Does it work on Chrome?
-No. Chrome's Manifest V3 removed webRequestBlocking, which this extension depends on. Firefox's MV2 is the only viable target for this architecture.
-
-Q: Why Firefox specifically?
-Because Firefox still supports webRequestBlocking + filterResponseData, which lets the extension read response bodies at the browser level without patching the page's JavaScript. This is dramatically more robust than DOM scraping or fetch monkey-patching.
-
-Q: How much data can it hold?
-browser.storage.local has a 5 MB default quota, but the extension declares unlimitedStorage, so Firefox will grant more as needed. If you're capturing millions of rows, see Roadmap for IndexedDB migration.
-
-Q: Can I schedule exports automatically?
-Not in v1. The popup is manual. Auto-export is on the roadmap.
-
-Q: Will this break the target platform?
-No. The extension only reads responses as they pass by. It never modifies requests or responses and never sends anything back.
-
-Q: What about terms of service?
-You are extracting your own data from your own account. Most jurisdictions consider this a data portability right (see GDPR Article 20). Check your local laws and the platform's ToS. See Legal & Ethical Use.
-
----
-
-🛠 Development Workflow
-
-Live-reloading development
-
-```bash
-cd netrofit-exporter
-web-ext run
+```js
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    browser.storage.local.set({
+      capturedData: serializeCapturedData(capturedData)
+    });
+  }, 250);
+}
 ```
 
-This launches Firefox with the extension loaded. Changes to background.js, popup/*, or manifest.json auto-reload the extension. No manual reloading.
+Writing to `storage.local` on every ingestion would thrash the disk. The 250 ms debounce coalesces bursts (e.g. a page that fires 10 XHRs at once) into a single write.
 
-Linting
+### 9. Serialization
+
+`Set` objects don't survive `JSON.stringify`. The serializer converts `Set` → `Array` before storage and back on hydration. This is why we have explicit `serializeCapturedData` / `deserializeCapturedData` functions instead of just `JSON.parse(JSON.stringify(...))`.
+
+---
+
+## 📤 Deep Dive: The Export Pipeline
+
+Everything below lives in `popup/popup.js`.
+
+### 1. Reading from storage directly
+
+The popup reads `capturedData` from `browser.storage.local` **directly**, rather than asking the background script via `runtime.sendMessage`. This avoids the message-size limit (~64 MB in practice, but with structured cloning overhead) and works even if the background script has been suspended by Firefox.
+
+### 2. Flattening
+
+```js
+function flatten(obj, prefix = '', out = {}) {
+  for (const [k, v] of Object.entries(obj || {})) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, key, out);
+    else if (Array.isArray(v)) out[key] = JSON.stringify(v);
+    else out[key] = v;
+  }
+  return out;
+}
+```
+
+Nested objects become dot-notation columns:
+
+```json
+{ "id": 1, "student": { "name": "Ahmed", "phone": "010…" } }
+```
+
+becomes:
+
+| id | student.name | student.phone |
+|---|---|---|
+| 1 | Ahmed | 010… |
+
+Arrays are serialized as JSON strings in a single cell. This is deliberate — flattening arrays into columns (`tags.0`, `tags.1`, …) produces sparse, unreadable CSVs.
+
+### 3. CSV generation
+
+```js
+function toCSV(rows) {
+  if (!rows.length) return '';
+  const flat = rows.map(r => flatten(r));
+  const cols = [...new Set(flat.flatMap(Object.keys))];
+  const escape = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const header = cols.map(escape).join(',') + '\n';
+  const body = flat.map(r => cols.map(c => escape(r[c])).join(',')).join('\n');
+  return '\uFEFF' + header + body;
+}
+```
+
+Key details:
+
+- **Column union:** columns are the union of all keys across all rows, not just the first row's keys. If row 1 has `{a, b}` and row 2 has `{a, b, c}`, the CSV has columns `a, b, c`, with an empty cell for row 1's `c`.
+- **Universal quoting:** every cell is wrapped in `"…"`, even numbers. Excel and Sheets parse this correctly, and it sidesteps comma/newline/quote issues entirely.
+- **BOM prefix:** `\uFEFF` at the start tells Excel the file is UTF-8. Without it, Arabic names appear as `Ø£ØÙ…Ø¯`.
+
+### 4. Download
+
+```js
+const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+const url = URL.createObjectURL(blob);
+browser.downloads.download({ url, filename, saveAs: false })
+  .finally(() => setTimeout(() => URL.revokeObjectURL(url), 10000));
+```
+
+The `URL.revokeObjectURL` is delayed 10 seconds to give Firefox time to finish writing the file. Revoking too early results in a 0-byte download.
+
+---
+
+## 🔄 Data Flow
+
+```
+┌──────────────────┐
+│  User browses    │
+│  app.netrofit    │
+└────────┬─────────┘
+         │ XHR request
+         ▼
+┌──────────────────┐
+│  Netrofit API    │
+│  returns JSON    │
+└────────┬─────────┘
+         │ response stream
+         ▼
+┌──────────────────────────────────────────┐
+│  background.js                            │
+│  ┌──────────────────────────────────────┐ │
+│  │ webRequest.onBeforeRequest           │ │
+│  │  → filterResponseData()              │ │
+│  │    → decode + JSON.parse             │ │
+│  │      → guessEntity()                 │ │
+│  │        → normalize()                 │ │
+│  │          → ingest()  ──► dedupe      │ │
+│  │            → persist() ──► storage   │ │
+│  └──────────────────────────────────────┘ │
+└────────┬──────────────────────────────────┘
+         │ browser.storage.local
+         ▼
+┌──────────────────────────────────────────┐
+│  popup.js                                 │
+│  ┌──────────────────────────────────────┐ │
+│  │ read capturedData                    │ │
+│  │  → flatten() per row                 │ │
+│  │    → toCSV()  (union cols + BOM)     │ │
+│  │      → Blob → downloads.download()   │ │
+│  └──────────────────────────────────────┘ │
+└────────┬──────────────────────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│  CSV files in    │
+│  Downloads/      │
+└──────────────────┘
+```
+
+---
+
+## ⚙️ Configuration Reference
+
+### `manifest.json` keys that matter
+
+| Key | Value | Why |
+|---|---|---|
+| `manifest_version` | `2` | MV3 removed `webRequestBlocking`. We need it. |
+| `permissions` | `webRequest`, `webRequestBlocking`, `storage`, `downloads`, `unlimitedStorage`, `*://app.netrofit.com/*` | Host pattern must be **inside** `permissions` in MV2. |
+| `background.persistent` | `true` | Prevents Firefox from suspending the background page mid-capture. |
+| `browser_specific_settings.gecko.id` | `netrofit-exporter@local` | Required for `web-ext run` and AMO signing. |
+| `browser_specific_settings.gecko.data_collection_permissions.required` | `["none"]` | Mandatory since Nov 2025. This extension transmits nothing. |
+
+### `browser.storage.local`
+
+One key is used:
+
+| Key | Shape |
+|---|---|
+| `capturedData` | `{ [entity: string]: { rows: object[], seen: string[] } }` |
+
+The `seen` array is a serialized `Set` of record identifiers used for deduplication.
+
+### Runtime message types
+
+The popup can send these messages to the background script:
+
+| Message | Response | Purpose |
+|---|---|---|
+| `{ type: 'GET_ENTITY_LIST' }` | `string[]` | List of captured entity names |
+| `{ type: 'GET_ENTITY', entity: 'students' }` | `{ rows, seen }` | Full data for one entity |
+| `{ type: 'RESET' }` | `{ ok: true }` | Clear all captured data |
+
+The popup mostly reads `storage.local` directly and only messages the background for RESET.
+
+---
+
+## 🛠 Troubleshooting
+
+### "Background script could not be found at `background.js`"
+
+`background.js` is not in the same folder as `manifest.json`. Firefox resolves manifest paths relative to the manifest's own directory. Move `background.js` (or the manifest) so both live together.
+
+### "Icon must be square"
+
+Firefox rejects non-square PNG icons. Either resize the PNG to a 1:1 ratio, or switch to SVG. This project uses `icon.svg` for that reason.
+
+### "`manifest.json` was not found" when running `web-ext`
+
+You're running `web-ext` from a directory that doesn't contain the manifest. `cd` into the folder that has `manifest.json` first.
+
+### "The package file must be a ZIP of the extension's files themselves, not of the containing directory"
+
+You zipped the folder instead of its contents. The ZIP must have `manifest.json` at its top level. Use `web-ext build`, which handles this correctly.
+
+### "This add-on could not be installed because it appears to be corrupt"
+
+Usually caused by a manifest syntax error (trailing comma, missing brace). Run `web-ext lint` — it reports the exact line.
+
+### Extension loads, but nothing is captured
+
+Check, in order:
+
+1. **Open the background console** (`about:debugging` → Inspect). Do you see any log lines?
+2. **Are there any XHRs at all?** Open DevTools → Network tab, filter by `XHR`. If every request is `document`, `script`, or `img`, the site isn't making JSON XHRs — it might be SSR, WebSocket, or a different transport.
+3. **Is the URL pattern matching?** Look at the request URL in DevTools. If it's not under `app.netrofit.com` — for example if the API lives on `api.netrofit.com` — add that host to `permissions` and to the listener's `urls` filter.
+4. **Is the response JSON?** Some responses are HTML error pages. The `startsWith('{')` guard skips those silently.
+
+### Export produces empty CSVs
+
+Storage has entities but no rows — likely because `normalize()` didn't unwrap the response envelope. Open the background console, look at the raw response, and check what key holds the array. If it's not in `['data','items','results','rows','list','records']`, add it to `normalize()`.
+
+### Arabic text shows as `Ø£ØÙ…Ø¯`
+
+The BOM prefix is missing or was stripped. Verify `toCSV` returns a string starting with `\uFEFF`. If your editor auto-strips BOMs, save the file as UTF-8 without normalization.
+
+---
+
+## ❓ FAQ
+
+**Does this work with Chrome / Edge / Brave?**
+Not currently. Chrome's MV3 removed blocking `webRequest`. Porting would require rewriting the capture layer using `chrome.debugger` or a content-script-based `fetch` patch — both are less reliable.
+
+**Does it capture HTTPS traffic?**
+Yes — the extension runs inside Firefox and observes the decrypted response before it's handed to the page. This is not a MITM proxy; it's the browser's own API.
+
+**Will Netrofit notice?**
+No. The extension runs entirely on the client side. No extra requests are made. Netrofit's servers see exactly the same traffic they'd see without the extension.
+
+**Does it work with GraphQL?**
+Partially. `guessEntity` infers names from URL paths. If Netrofit uses a single `/graphql` endpoint, every request maps to the entity `graphql` — collapsing all data into one. This is a known limitation. See [Roadmap](#-roadmap).
+
+**What if Netrofit changes their API?**
+The extension does not hard-code endpoints. It captures whatever the app fetches. If Netrofit adds or renames endpoints, the extension adapts automatically — the entity name will change but the data will still be captured.
+
+**Is my data sent anywhere?**
+No. Zero network calls leave your browser. See [Privacy & Security](#-privacy--security).
+
+**Can I export data for a client on my machine?**
+Yes — that's the intended use case. Log in as the client (with their permission), capture, export, log out, hand them the CSVs. The extension itself stores no credentials.
+
+**How large can the export get?**
+Limited by `storage.local` quota (~10 MB per extension without `unlimitedStorage`, more with it). We request `unlimitedStorage`. If you hit real limits, migration to IndexedDB is on the roadmap.
+
+---
+
+## 🧑‍💻 Development Workflow
 
 ```bash
-cd netrofit-exporter
+# Clone
+git clone https://github.com/ZiadKhaled999/masar-eye.git
+cd masar-eye
+
+# Lint — catches manifest and JS syntax errors
 web-ext lint
+
+# Run with live reload
+web-ext run
+
+# In another terminal, tail the background console via about:debugging
 ```
 
-Runs Firefox's static analyzer. Expect:
+**Editing workflow:**
 
-```
-Validation Summary:
-  errors: 0
-  notices: 0
-  warnings: 0
-```
+1. Make a change in `background.js` or `popup/*`.
+2. `web-ext run` automatically reloads the extension.
+3. Reload the Netrofit tab (the content script injection is not needed — this extension has none).
+4. Open the background console and verify.
 
-Building a package
+**Debugging tips:**
 
-```bash
-cd netrofit-exporter
-web-ext build
-```
-
-Output: web-ext-artifacts/netrofit_exporter-1.0.0.zip
-
-Important: The ZIP must have manifest.json at its root. If you see the error "No manifest.json was found at the root of the extension", you zipped the containing folder instead of its contents.
-
-Debugging
-
-1. Background script: about:debugging → Inspect → Console
-2. Popup: Right-click the extension icon → Inspect
-3. Storage: about:debugging → Inspect → Storage → Extension Storage → capturedData
-4. Network: DevTools → Network → filter by XHR → look for app.netrofit.com
-
-Testing checklist
-
-Before submitting a change:
-
-☐ web-ext lint returns 0 errors
-☐ Extension loads without errors in about:debugging
-☐ Browsing app.netrofit.com logs at least one Captured data for: message
-☐ storage.local contains capturedData with at least one entity
-☐ Export downloads one CSV per entity
-☐ CSV opens correctly in Excel with Arabic text intact
-☐ Reset button clears storage.local
-☐ No console errors during 10 minutes of use
+- `browser.storage.local.get('capturedData')` in the background console prints the full captured state.
+- The Network tab in DevTools shows the raw API shape — this is what `normalize()` is designed against.
+- If `guessEntity` returns a weird name, log `details.url` temporarily to see which segment was picked.
 
 ---
 
-🧩 Extending Masar Eye
+## 🧩 Extending Masar Eye
 
-Adding support for a new platform
+### Adding support for a new Netrofit page
 
-1. Add the host pattern to manifest.json permissions and the webRequest filter:
-   ```json
-   "*://*.example.com/*"
-   ```
-2. Adjust guessEntity in background.js if the URL structure differs. You may need to look at request bodies or response shapes for GraphQL APIs.
-3. Add the platform to the popup if you want separate export buttons per platform.
+If the page's data comes from a new URL pattern, `guessEntity` will handle it automatically. Test by browsing the page and checking the background console for the entity name. If it's wrong (e.g. `courses-42` instead of `courses`), adjust the ID-skipping regex.
 
-Adding a new entity type
+### Adding a new CSV format
 
-Nothing needed — guessEntity picks up new URL segments automatically. If a new endpoint appears (/api/invoices), it becomes a new entity and exports as netrofit-invoices-*.csv.
+Modify `toCSV` in `popup/popup.js`. The current implementation is deliberately minimal. If you need typed cells (numbers unquoted, dates formatted), replace the universal-quoting logic with a per-cell type check.
 
-Adding a custom export format
+### Supporting another platform
 
-Modify popup/popup.js:
+`guessEntity` and the URL filter in `manifest.json` are the only platform-specific pieces. To target another SaaS:
 
-1. Replace toCSV with toJSON, toXLSX, etc.
-2. Change the mime type in the Blob.
-3. Change the file extension in browser.downloads.download.
+1. Add its host to `permissions` and the listener's `urls` filter.
+2. Adjust `guessEntity` if the URL structure differs.
+3. Optionally, add a per-platform `normalize()` if its envelope keys differ.
+
+Everything else (capture, dedupe, persist, flatten, export) is platform-agnostic.
 
 ---
 
-🔒 Privacy & Security
+## 🔒 Privacy & Security
 
-Masar Eye is designed with privacy as a hard constraint:
+**What the extension reads:**
+HTTP responses from `app.netrofit.com` made by your own authenticated session.
 
-Guarantee How it's enforced
-No data leaves your machine No network requests in the extension code; no fetch calls anywhere
-No telemetry No analytics SDKs, no error reporting services
-Host-restricted Only runs on app.netrofit.com (see permissions in manifest)
-No password capture Only response bodies are read, never request bodies
-Open source Full source available; reviewers and users can audit it
-Reproducible builds No minification, no bundling, no build step — source = shipped code
+**What the extension stores:**
+Response bodies in `browser.storage.local`, keyed by inferred entity name. Nothing else. No cookies. No auth tokens. No headers.
 
-What the extension can see: Every XHR response from app.netrofit.com in your authenticated session. This includes student names, phone numbers, payment amounts, and grades — i.e. the same data you see on screen.
+**What the extension transmits:**
+Nothing. There are no fetch calls to any external server, no analytics, no error reporting. The developer has no visibility into your data.
 
-What the extension cannot see: Requests to any other domain, your Firefox password store, your cookies, or request payloads (including passwords).
+**Permissions explained:**
 
-Where data lives: In browser.storage.local, an isolated per-extension store on your machine. Uninstalling the extension removes it.
+| Permission | Why |
+|---|---|
+| `webRequest` | Observe requests |
+| `webRequestBlocking` | Read response bodies synchronously |
+| `storage` | Persist captured data locally |
+| `downloads` | Save CSV files |
+| `unlimitedStorage` | Avoid the 10 MB default quota |
+| `*://app.netrofit.com/*` | Scope all of the above to one host |
 
----
+**Threat model:**
+This extension trusts the browser's HTTPS handling. If your traffic to `app.netrofit.com` is intercepted (corporate proxy with a custom CA, malicious extension, etc.), the extension will happily capture whatever the browser decodes. This is inherent to any client-side capture tool and is not a design flaw.
 
-⚖️ Legal & Ethical Use
-
-Masar Eye is designed for data portability — the right of users to access and export their own data from services they use.
-
-✅ Intended uses
-
-· A school owner exporting their own Netrofit center data for backup or migration.
-· An admin pulling reports into their own BI tool.
-· A client of Masar moving their data from a competitor's platform into Masar's.
-
-❌ Unacceptable uses
-
-· Extracting data from accounts you do not own or administer.
-· Reselling extracted data.
-· Circumventing access controls, rate limits, or paywalls.
-· Scraping competitor platforms for competitive intelligence.
-
-⚠️ Responsibilities
-
-· You must have permission to access the data you extract.
-· You must comply with the target platform's ToS — many platforms allow self-service export; some don't.
-· You must comply with local privacy laws — GDPR (Article 20 grants data portability), CCPA, and similar regulations often protect this use case, but you are responsible for verifying.
-· You must protect extracted data — CSVs contain PII. Store them securely.
-
-Masar Eye's maintainers do not condone or support unauthorized data extraction.
+**Auditing:**
+Every line of code that runs is in this repository. There is no build step, no bundler, no minified file. Open `background.js` and `popup/popup.js` in your editor and read them — that's the entire extension.
 
 ---
 
-🗺 Roadmap
+## ⚖️ Legal & Ethical Use
 
-v1.1 — Polish
+Masar Eye is designed for **data portability** — a right recognized under GDPR Article 20 and comparable laws. It only exports data that:
 
-☐ Auto-pagination — detect page/offset/cursor params and fetch all pages automatically
-☐ Entity picker UI — checkboxes to export only selected entities
-☐ Column picker UI — choose which columns to include in each CSV
-☐ Auto-export on schedule — background alarm triggers periodic exports
+1. You are authorized to access (you're logged in as the account owner or with their permission), **and**
+2. Is already being sent to your browser by the platform.
 
-v1.2 — Robustness
+**Do not use this extension to:**
 
-☐ GraphQL support — infer entity from response shape when the endpoint is /graphql
-☐ WebSocket capture — intercept WS frames for live-updating platforms
-☐ IndexedDB migration — move from storage.local to IndexedDB for large datasets
-☐ Better guessEntity — regex config per platform
+- Access data you don't have permission to view.
+- Redistribute another person's data without their consent.
+- Bypass authentication or authorization mechanisms.
+- Extract data at scale in violation of Netrofit's terms of service.
 
-v1.3 — Multi-platform
-
-☐ Platform config file — declare URL patterns, entity hints, and pagination rules per platform
-☐ Support for Masar itself — export from Masar's own platform as CSV
-☐ Additional targets — configurable for any XHR-based SaaS
-
-v2.0 — Beyond Firefox
-
-☐ Chrome support — requires MV3 migration + declarativeNetRequest (limitations to investigate)
-☐ Standalone CLI — Playwright/Puppeteer-driven exporter for servers
+The extension is a tool. Using it on data you don't own may violate contracts, terms of service, or local law. The authors take no responsibility for misuse.
 
 ---
 
-🤝 Contributing
+## 🗺 Roadmap
 
-Contributions are welcome. Before opening a PR:
+### v1.1 — Better schema inference
 
-1. Fork and branch from main.
-2. Follow the existing style — plain JS, no frameworks, no build step.
-3. Run web-ext lint — 0 errors, 0 warnings.
-4. Test manually — load into Firefox, browse a real platform, confirm capture + export.
-5. Update this README if you change behavior, add permissions, or shift the architecture.
+- Full `analyzer.js` module: type detection (dates, emails, phones), nullable-field tracking, primary-key inference.
+- Entity picker UI: checkboxes per entity, per-entity column selection.
+- CSV column ordering controls.
 
-Commit conventions
+### v1.2 — Pagination and streaming
 
-· feat: — new feature
-· fix: — bug fix
-· docs: — documentation only
-· refactor: — code change that neither fixes a bug nor adds a feature
-· chore: — build, tooling, dependencies
+- Auto-pagination: detect `page`, `offset`, `cursor`, `limit`, `per_page` params and replay requests until exhausted.
+- Streaming CSV writer for very large exports (avoid holding the full file in memory).
 
-Reporting issues
+### v2.0 — Multi-platform
 
-When filing a bug, include:
+- GraphQL-aware entity inference (parse `query` body or inspect response shape).
+- Adapters for other SaaS platforms with a common export pipeline.
+- Direct import into Masar with schema mapping.
 
-· Firefox version (about:support)
-· Steps to reproduce
-· Expected vs. actual behavior
-· Background console output (about:debugging → Inspect → Console)
-· A snippet from storage.local (redact PII)
+### Not planned
 
-Security disclosures
-
-If you find a security issue (e.g. an unintended data leak), do not open a public issue. Contact the maintainers privately first.
+- MV3 port. Chrome's API cannot support the capture mechanism used here.
+- Server-side storage. This is a local-first tool by design.
+- Telemetry. Ever.
 
 ---
 
-📄 License
+## 🤝 Contributing
 
-Apache License 2.0 — see LICENSE for the full text.
+1. Fork the repo.
+2. Create a feature branch (`git checkout -b feature/my-thing`).
+3. Make your change. Run `web-ext lint` — it must pass with 0 errors.
+4. Test in Firefox against a real Netrofit session.
+5. Open a pull request describing the change and how you tested it.
 
-You are free to use, modify, and distribute this software, including commercially, provided you preserve the license and attribution. The license also provides an express grant of patent rights from contributors.
+**Style guide:**
+
+- Plain JavaScript, no framework, no bundler.
+- 2-space indentation.
+- Prefer `browser.*` promise APIs over callback `chrome.*` APIs.
+- No comments that restate the code. Comment the *why*, not the *what*.
+- Keep `background.js` under 300 lines. If it grows, split into `lib/`.
+
+**Reporting bugs:**
+
+Include:
+- Firefox version
+- The background console output (`about:debugging` → Inspect → Console)
+- One sample API response (redact personal data)
+- Steps to reproduce
 
 ---
 
-🙏 Credits
+## 📄 License
 
-· Mozilla — for keeping webRequestBlocking and filterResponseData alive in Firefox.
-· web-ext — for making extension development painless.
-· The data portability movement — for the legal and ethical foundation this tool rests on.
+Licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for the full text.
+
+You are free to use, modify, and distribute this software, including for commercial purposes, provided you preserve the copyright notice and license text.
 
 ---
 
-Built with care by Ziad Khaled and contributors.
+## 🙏 Credits
 
-Extract your data. Own your data. Take it with you.
+- Built as part of the **Masar** project.
+- Uses Mozilla's `webRequest.filterResponseData()` API — the only clean way to read response bodies from a Firefox extension.
+- Thanks to every SaaS vendor who *does* ship a data export button. You make tools like this unnecessary, which is the highest compliment.
+
+---
+
+<p align="center">
+  <strong>Your data. Your machine. Your files.</strong><br>
+  <sub>Masar Eye — built because lock-in is a choice, not a requirement.</sub>
+</p>
