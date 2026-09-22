@@ -13,9 +13,7 @@
     "webRequestBlocking",
     "storage",
     "downloads",
-    "unlimitedStorage"
-  ],
-  "host_permissions": [
+    "unlimitedStorage",
     "*://app.netrofit.com/*"
   ],
   "background": {

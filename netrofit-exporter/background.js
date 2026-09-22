@@ -87,40 +87,45 @@ function mergeBuffers(buffers) {
   return merged.buffer;
 }
 
-browser.webRequest.onBeforeRequest.addListener(
-  async (details) => {
-    if (details.type !== 'xmlhttprequest') return {};
-    if (details.method === 'OPTIONS') return {};
-    if (!details.url.startsWith('https://app.netrofit.com/')) return {};
-    try {
-      const filter = browser.webRequest.filterResponseData(details.requestId);
-      const decoder = new TextDecoder();
-      const chunks = [];
-      filter.ondata = (event) => chunks.push(event.data);
-      filter.onerror = (event) => filter.disconnect();
-      filter.onstop = () => {
-        try {
-          const body = decoder.decode(mergeBuffers(chunks));
-          const trimmed = body.trim();
-          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            const json = JSON.parse(trimmed);
-            const entity = guessEntity(details.url);
-            ingest(entity, json);
+browser.storage.local.get('capturedData').then((result) => {
+  if (result.capturedData) {
+    capturedData = deserializeCapturedData(result.capturedData);
+  }
+  browser.webRequest.onBeforeRequest.addListener(
+    (details) => {
+      if (details.type !== 'xmlhttprequest') return {};
+      if (details.method === 'OPTIONS') return {};
+      if (!details.url.startsWith('https://app.netrofit.com/')) return {};
+      try {
+        const filter = browser.webRequest.filterResponseData(details.requestId);
+        const decoder = new TextDecoder();
+        const chunks = [];
+        filter.ondata = (event) => chunks.push(event.data);
+        filter.onerror = (event) => { try { filter.close(); } catch (e) {} };
+        filter.onstop = () => {
+          try {
+            const body = decoder.decode(mergeBuffers(chunks));
+            const trimmed = body.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              const json = JSON.parse(trimmed);
+              const entity = guessEntity(details.url);
+              ingest(entity, json);
+            }
+          } catch (e) {
+            console.error('Failed to parse response', e);
+          } finally {
+            try { filter.close(); } catch (e) {}
           }
-        } catch (e) {
-          console.error('Failed to parse response', e);
-        } finally {
-          filter.disconnect();
-        }
-      };
-    } catch (e) {
-      console.error('filterResponseData failed', e);
-    }
-    return {};
-  },
-  { urls: ['*://app.netrofit.com/*'] },
-  ['blocking']
-);
+        };
+      } catch (e) {
+        console.error('filterResponseData failed', e);
+      }
+      return {};
+    },
+    { urls: ['*://app.netrofit.com/*'] },
+    ['blocking']
+  );
+});
 
 browser.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'GET_ENTITY_LIST') {
@@ -132,14 +137,7 @@ browser.runtime.onMessage.addListener((msg, sender) => {
   }
   if (msg.type === 'RESET') {
     capturedData = {};
-    browser.storage.local.remove('capturedData');
-    return { ok: true };
+    return browser.storage.local.remove('capturedData').then(() => ({ ok: true }));
   }
   return;
-});
-
-browser.storage.local.get('capturedData').then((result) => {
-  if (result.capturedData) {
-    capturedData = deserializeCapturedData(result.capturedData);
-  }
 });
