@@ -5,10 +5,42 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div id="status">Loading...</div>
-  <div class="actions">
-    <button id="export">Export CSV</button>
-    <button id="reset">Reset</button>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="title">Netrofit Exporter</div>
+        <div class="subtitle">Export your network data</div>
+      </div>
+    </header>
+
+    <div id="status" class="status" aria-live="polite">Loading…</div>
+
+    <div class="actions">
+      <button id="export" class="btn btn-primary" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Export CSV
+      </button>
+      <button id="reset" class="btn btn-danger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        Reset
+      </button>
+    </div>
+
+    <footer class="footer">
+      <a href="#" id="help-link">Help & Feedback</a>
+    </footer>
   </div>
   <script src="popup.js"></script>
 </body>
