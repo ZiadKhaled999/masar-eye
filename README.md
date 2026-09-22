@@ -3,7 +3,9 @@ masar-eye
 Extract your data from third-party platforms — cleanly, locally, and on your terms.
 
 https://img.shields.io/badge/license-Apache%202.0-blue.svg
+
 https://img.shields.io/badge/Firefox-Manifest%20V2-orange.svg
+
 https://img.shields.io/badge/status-active-brightgreen.svg
 
 ---
