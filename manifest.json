@@ -5,7 +5,11 @@
   "description": "Captures API responses from app.netrofit.com and exports them as CSV.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "netrofit-exporter@localhost"
+      "id": "netrofit-exporter@local",
+      "strict_min_version": "91.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "permissions": [
@@ -24,6 +28,6 @@
     "default_popup": "popup/popup.html"
   },
   "icons": {
-    "48": "icons/icon.png"
+    "48": "icons/icon.svg"
   }
 }
